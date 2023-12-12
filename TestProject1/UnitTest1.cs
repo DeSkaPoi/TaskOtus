@@ -34,6 +34,32 @@ namespace TestProject1
             }
         };
 
+        [Fact]
+        public async Task Test1()
+        {
+            BlockingCollection<ICommand> commands = new BlockingCollection<ICommand>();
+
+            var com1 = new Command(() => Console.WriteLine("Programm 1"));
+            var com2 = new Command(() => Console.WriteLine("Programm 2"));
+            var com3 = new Command(() => throw new HardStopException());
+            var com4 = new Command(() => Console.WriteLine("Programm 4"));
+            var com5 = new Command(() => Console.WriteLine("Programm 5"));
+
+            commands.Add(com1);
+            commands.Add(com2);
+            commands.Add(com3);
+            commands.Add(com4);
+            commands.Add(com5);
+
+            MyTaskExecute myTask = new MyTaskExecute(_behaviour, commands);
+                        
+            var task = myTask.Start();
+
+            Assert.Equal(TaskStatus.RanToCompletion, task.Status);
+
+            await task;
+            myTask.Stop();
+        }
 
         [Fact]
         public async Task Test2()
