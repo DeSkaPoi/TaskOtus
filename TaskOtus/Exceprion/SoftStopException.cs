@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TaskOtus
+namespace TaskOtus.Exceprion
 {
-    public class HardStopException : Exception
+    public class SoftStopException : Exception
     {
     }
 }

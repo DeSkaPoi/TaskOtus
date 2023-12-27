@@ -4,24 +4,29 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TaskOtus.Command;
+using TaskOtus.State;
 
 namespace TaskOtus
 {
     public class MyTaskExecute
     {
         bool is_stop = false;
-        Action<bool, BlockingCollection<ICommand>> _behaviour;
+        Action<bool, BlockingCollection<ICommand>, IState> _behaviour;
         BlockingCollection<ICommand> _commands;
 
-        public MyTaskExecute(Action<bool, BlockingCollection<ICommand>> behaviour, BlockingCollection<ICommand> commands)
+        private IState _state;
+
+        public MyTaskExecute(Action<bool, BlockingCollection<ICommand>, IState> behaviour, BlockingCollection<ICommand> commands, IState state)
         {
             _behaviour = behaviour;
             _commands = commands;
+            _state = state;
         }
 
         public async Task Start()
         {
-            await Task.Run(() => _behaviour(is_stop, _commands));
+            await Task.Run(() => _behaviour(is_stop, _commands, _state));
         }
 
         public void Stop()

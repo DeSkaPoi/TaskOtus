@@ -1,11 +1,16 @@
 using System.Collections.Concurrent;
 using TaskOtus;
+using TaskOtus.Command;
+using TaskOtus.Exceprion;
+using TaskOtus.State;
 
 namespace TestProject1
 {
     public class UnitTest1
     {
-        Action<bool, BlockingCollection<ICommand>> _behaviour = (bool stop, BlockingCollection<ICommand> commands) =>
+
+
+        Action<bool, BlockingCollection<ICommand>, IState> _behaviour = (bool stop, BlockingCollection<ICommand> commands, IState state) =>
         {
             while (!stop)
             {
@@ -13,6 +18,7 @@ namespace TestProject1
                 try
                 {
                     c.Execute();
+                    Assert.Equal(c.State, state);
                 }
                 catch (SoftStopException e)
                 {
@@ -20,7 +26,7 @@ namespace TestProject1
                     // суть SS в том, чтобы закончить все задачи на текущий момент,
                     // которые находятся в очереди.
 
-                    commands.Add(new Command(() => throw new HardStopException()));
+                    commands.Add(new Command(() => throw new HardStopException(), null));
 
                 }
                 catch (HardStopException e)
@@ -37,6 +43,7 @@ namespace TestProject1
         [Fact]
         public async Task Test1()
         {
+            Dictionary<string, IState> states = new Dictionary<string, IState>();
             BlockingCollection<ICommand> commands = new BlockingCollection<ICommand>();
 
             var com1 = new Command(() => Console.WriteLine("Programm 1"));
@@ -51,11 +58,11 @@ namespace TestProject1
             commands.Add(com4);
             commands.Add(com5);
 
-            MyTaskExecute myTask = new MyTaskExecute(_behaviour, commands);
-                        
+            MyTaskExecute myTask = new MyTaskExecute(_behaviour, commands, new DefaultState());
+
             var task = myTask.Start();
 
-            Assert.Equal(TaskStatus.RanToCompletion, task.Status);
+            Assert.Equal(TaskStatus.WaitingForActivation, task.Status);
 
             await task;
             myTask.Stop();
@@ -64,13 +71,20 @@ namespace TestProject1
         [Fact]
         public async Task Test2()
         {
+            Dictionary<string, IState> states = new Dictionary<string, IState>();
+            var mState = new MoveToState(states);
+            var uState = new UsusalState(states);
+
+            states.Add("m", mState);
+            states.Add("u", uState);
+
             BlockingCollection<ICommand> commands = new BlockingCollection<ICommand>();
 
-            var com1 = new Command(() => Console.WriteLine("Programm 1"));
-            var com2 = new Command(() => Console.WriteLine("Programm 2"));
-            var com3 = new Command(() => throw new HardStopException());
-            var com4 = new Command(() => Console.WriteLine("Programm 4"));
-            var com5 = new Command(() => Console.WriteLine("Programm 5"));
+            var com1 = new RunCommand(() => Console.WriteLine("Programm 1"), uState);
+            var com2 = new MoveToCommand(() => Console.WriteLine("Programm 2"), mState);
+            var com3 = new Command(() => Console.WriteLine("Programm 3"));
+            var com4 = new Command(() => throw new SoftStopException());
+            var com5 = new Command(() => Console.WriteLine("Programm 4"));
 
             commands.Add(com1);
             commands.Add(com2);
@@ -78,25 +92,33 @@ namespace TestProject1
             commands.Add(com4);
             commands.Add(com5);
 
-            MyTaskExecute myTask = new MyTaskExecute(_behaviour, commands);
-            await myTask.Start();
-            myTask.Stop();
-            Console.WriteLine(commands.Count);
+            MyTaskExecute myTask = new MyTaskExecute(_behaviour, commands, mState);
+                        
+            var task = myTask.Start();
 
-            Assert.Equal(2, commands.Count);
+
+
+            await task;
+            myTask.Stop();
         }
 
         [Fact]
         public async Task Test3()
         {
+            Dictionary<string, IState> states = new Dictionary<string, IState>();
+            var mState = new MoveToState(states);
+            var uState = new UsusalState(states);
+
+            states.Add("m", mState);
+            states.Add("u", uState);
+
             BlockingCollection<ICommand> commands = new BlockingCollection<ICommand>();
 
-            var com1 = new Command(() => { Task.Delay(2000); Console.WriteLine("Programm 1"); });
-            var com2 = new Command(() => { Task.Delay(2000); Console.WriteLine("Programm 2"); });
-            var com3 = new Command(() => throw new SoftStopException());
-            var com4 = new Command(() => { Task.Delay(2000); Console.WriteLine("Programm 4"); });
-            var com5 = new Command(() => { Task.Delay(2000); Console.WriteLine("Programm 5"); });
-
+            var com1 = new RunCommand(() => Console.WriteLine("Programm 1"), uState);
+            var com2 = new Command(() => Console.WriteLine("Programm 2"));
+            var com3 = new Command(() => Console.WriteLine("Programm 3"));
+            var com4 = new Command(() => throw new SoftStopException());
+            var com5 = new Command(() => Console.WriteLine("Programm 4"));
 
             commands.Add(com1);
             commands.Add(com2);
@@ -104,16 +126,14 @@ namespace TestProject1
             commands.Add(com4);
             commands.Add(com5);
 
-            MyTaskExecute myTask = new MyTaskExecute(_behaviour, commands);
-            await myTask.Start();
-            var com6 = new Command(() => { Task.Delay(1000); Console.WriteLine("Programm 6"); });
-            var com7 = new Command(() => { Task.Delay(1000); Console.WriteLine("Programm 7"); });
-            commands.Add(com6);
-            commands.Add(com7);
-            myTask.Stop();
-            Console.WriteLine(commands.Count);
+            MyTaskExecute myTask = new MyTaskExecute(_behaviour, commands, uState);
 
-            Assert.Equal(2, commands.Count);
+            var task = myTask.Start();
+
+
+
+            await task;
+            myTask.Stop();
         }
     }
 }

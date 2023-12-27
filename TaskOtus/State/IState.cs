@@ -4,9 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace TaskOtus
+namespace TaskOtus.State
 {
-    public interface ICommand {
-        void Execute();
+    public interface IState
+    {
+        IState Handle();
+        void WritelineState();
     }
 }

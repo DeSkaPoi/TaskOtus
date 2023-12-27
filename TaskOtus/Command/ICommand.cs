@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TaskOtus.State;
 
-namespace TaskOtus
+namespace TaskOtus.Command
 {
-    public class SoftStopException : Exception
+    public interface ICommand
     {
+        void Execute();
+        IState State { get; }
     }
 }

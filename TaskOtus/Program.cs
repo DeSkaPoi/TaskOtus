@@ -1,11 +1,16 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using TaskOtus;
+using TaskOtus.Command;
+using TaskOtus.Exceprion;
+using TaskOtus.State;
 
 public class Program
 {
     static BlockingCollection<ICommand> commands = new BlockingCollection<ICommand>();
+    static Dictionary<string, IState> states = new Dictionary<string, IState>();
 
-    static Action<bool, BlockingCollection<ICommand>> _behaviour = (bool stop, BlockingCollection<ICommand> commands) =>
+    static Action<bool, BlockingCollection<ICommand>, IState> _behaviour = (bool stop, BlockingCollection<ICommand> commands, IState state) =>
     {
         while (!stop)
         {
@@ -20,7 +25,7 @@ public class Program
                 // суть SS в том, чтобы закончить все задачи на текущий момент,
                 // которые находятся в очереди.
 
-                commands.Add(new Command(() => throw new HardStopException()));
+                commands.Add(new Command(() => throw new HardStopException(), null));
 
             }
             catch (HardStopException e)
@@ -35,14 +40,19 @@ public class Program
     };
     private static async Task Main(string[] args)
     {
+        var mState = new MoveToState(states);
+        var uState = new UsusalState(states);
+
+        states.Add("m", mState);
+        states.Add("u", uState);
 
         BlockingCollection<ICommand> commands = new BlockingCollection<ICommand>();
 
-        var com1 = new Command(() => Console.WriteLine("Programm 1"));
-        var com2 = new Command(() => Console.WriteLine("Programm 2"));
-        var com3 = new Command(() => Console.WriteLine("Programm 3"));
-        var com4 = new Command(() => Console.WriteLine("Programm 4"));
-        var com5 = new Command(() => Console.WriteLine("Programm 5"));
+        var com1 = new RunCommand(() => Console.WriteLine("Programm 1"), uState);
+        var com2 = new Command(() => Console.WriteLine("Programm 2"), new DefaultState());
+        var com3 = new MoveToCommand(() => Console.WriteLine("Programm 3"), mState);
+        var com4 = new Command(() => throw new SoftStopException(), new DefaultState());
+        var com5 = new RunCommand(() => Console.WriteLine("Programm 4"), uState);
 
         commands.Add(com1);
         commands.Add(com2);
@@ -50,7 +60,7 @@ public class Program
         commands.Add(com4);
         commands.Add(com5);
 
-        MyTaskExecute myTask = new MyTaskExecute(_behaviour, commands);
+        MyTaskExecute myTask = new MyTaskExecute(_behaviour, commands, mState);
         await myTask.Start();
         Console.WriteLine(commands.Count);
 
